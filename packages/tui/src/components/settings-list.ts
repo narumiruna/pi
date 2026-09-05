@@ -13,6 +13,8 @@ export interface SettingItem {
 	description?: string;
 	/** Current value to display (right side) */
 	currentValue: string;
+	/** Optional default value shown after the description when selected */
+	defaultValue?: string;
 	/** If provided, Enter/Space cycles through these values */
 	values?: string[];
 	/** If provided, Enter opens this submenu. Receives current value and done callback.
@@ -162,11 +164,14 @@ export class SettingsList implements Component {
 
 		// Add description for selected item
 		const selectedItem = displayItems[this.selectedIndex];
-		if (selectedItem?.description) {
+		if (selectedItem?.description || selectedItem?.defaultValue !== undefined) {
 			lines.push("");
-			const wrappedDesc = wrapTextWithAnsi(selectedItem.description, width - 4);
-			for (const line of wrappedDesc) {
-				lines.push(this.theme.description(`  ${line}`));
+			let description = selectedItem.description ? this.theme.description(selectedItem.description) : "";
+			if (selectedItem.defaultValue !== undefined) {
+				description += `${description ? " " : ""}${this.theme.hint(`(Default: ${selectedItem.defaultValue})`)}`;
+			}
+			for (const line of wrapTextWithAnsi(description, Math.max(1, width - 4))) {
+				lines.push(truncateToWidth(`  ${line}`, width));
 			}
 		}
 

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added built-in default values inline after setting descriptions in `/settings`.
+
 ## [0.85.1] - 2026-09-05
 
 ### New Features

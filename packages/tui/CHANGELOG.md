@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added optional `SettingItem.defaultValue` display inline after the selected setting's description.
+
 ## [0.85.1] - 2026-09-05
 
 ### Added

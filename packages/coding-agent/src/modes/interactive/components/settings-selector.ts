@@ -12,12 +12,13 @@ import {
 	Text,
 } from "@earendil-works/pi-tui";
 import { formatHttpIdleTimeoutMs, HTTP_IDLE_TIMEOUT_CHOICES } from "../../../core/http-dispatcher.ts";
-import type {
-	DefaultProjectTrust,
-	FullscreenExitOutput,
-	MermaidRenderingMode,
-	TuiMode,
-	WarningSettings,
+import {
+	type DefaultProjectTrust,
+	type FullscreenExitOutput,
+	type MermaidRenderingMode,
+	SettingsManager,
+	type TuiMode,
+	type WarningSettings,
 } from "../../../core/settings-manager.ts";
 import { getSettingsListTheme, parseAutoThemeSetting, type TerminalTheme, theme } from "../theme/theme.ts";
 import { DynamicBorder } from "./dynamic-border.ts";
@@ -144,6 +145,7 @@ class WarningSettingsSubmenu extends Container {
 				label: "Anthropic extra usage",
 				description: "Warn when Anthropic subscription auth may use paid extra usage",
 				currentValue: (this.state.anthropicExtraUsage ?? true) ? "true" : "false",
+				defaultValue: "true",
 				values: ["true", "false"],
 			},
 		];
@@ -446,6 +448,8 @@ export class SettingsSelectorComponent extends Container {
 	constructor(config: SettingsConfig, callbacks: SettingsCallbacks) {
 		super();
 
+		// Read built-in defaults without loading user or project settings.
+		const defaults = SettingsManager.inMemory();
 		const supportsImages = getCapabilities().images;
 		const followUpKey = keyDisplayText("app.message.followUp");
 		const cycleThinkingKey = keyDisplayText("app.thinking.cycle");
@@ -463,6 +467,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Auto-compact",
 				description: "Automatically compact context when it gets too large",
 				currentValue: config.autoCompact ? "true" : "false",
+				defaultValue: String(defaults.getCompactionEnabled()),
 				values: ["true", "false"],
 			},
 			{
@@ -471,6 +476,7 @@ export class SettingsSelectorComponent extends Container {
 				description:
 					"Enter while streaming queues steering messages. 'one-at-a-time': deliver one, wait for response. 'all': deliver all at once.",
 				currentValue: config.steeringMode,
+				defaultValue: defaults.getSteeringMode(),
 				values: ["one-at-a-time", "all"],
 			},
 			{
@@ -478,6 +484,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Follow-up mode",
 				description: `${followUpKey} queues follow-up messages until agent stops. 'one-at-a-time': deliver one, wait for response. 'all': deliver all at once.`,
 				currentValue: config.followUpMode,
+				defaultValue: defaults.getFollowUpMode(),
 				values: ["one-at-a-time", "all"],
 			},
 			{
@@ -485,6 +492,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Transport",
 				description: "Preferred transport for providers that support multiple transports",
 				currentValue: config.transport,
+				defaultValue: defaults.getTransport(),
 				values: ["sse", "websocket", "websocket-cached", "auto"],
 			},
 			{
@@ -493,6 +501,7 @@ export class SettingsSelectorComponent extends Container {
 				description:
 					"Maximum idle gap while waiting for HTTP headers or body chunks. Disable for local models that pause longer than five minutes.",
 				currentValue: formatHttpIdleTimeoutMs(config.httpIdleTimeoutMs),
+				defaultValue: formatHttpIdleTimeoutMs(defaults.getHttpIdleTimeoutMs()),
 				values: HTTP_IDLE_TIMEOUT_CHOICES.map((choice) => choice.label),
 			},
 			{
@@ -500,6 +509,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Hide thinking",
 				description: "Hide thinking blocks in assistant responses",
 				currentValue: config.hideThinkingBlock ? "true" : "false",
+				defaultValue: String(defaults.getHideThinkingBlock()),
 				values: ["true", "false"],
 			},
 			{
@@ -507,6 +517,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Mermaid diagrams",
 				description: "Render Mermaid code blocks as Unicode diagrams",
 				currentValue: config.mermaidRenderingMode,
+				defaultValue: defaults.getMermaidRenderingMode(),
 				values: ["off", "final", "streaming"],
 			},
 			{
@@ -514,6 +525,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Cache miss notices",
 				description: "Show transcript notices for cache costs and provider recovery diagnostics",
 				currentValue: config.showCacheMissNotices ? "true" : "false",
+				defaultValue: String(defaults.getShowCacheMissNotices()),
 				values: ["true", "false"],
 			},
 			{
@@ -521,6 +533,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Collapse changelog",
 				description: "Show condensed changelog after updates",
 				currentValue: config.collapseChangelog ? "true" : "false",
+				defaultValue: String(defaults.getCollapseChangelog()),
 				values: ["true", "false"],
 			},
 			{
@@ -528,6 +541,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Quiet startup",
 				description: "Disable verbose printing at startup",
 				currentValue: config.quietStartup ? "true" : "false",
+				defaultValue: String(defaults.getQuietStartup()),
 				values: ["true", "false"],
 			},
 			{
@@ -535,6 +549,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Install telemetry",
 				description: "Send an anonymous version/update ping after changelog-detected updates",
 				currentValue: config.enableInstallTelemetry ? "true" : "false",
+				defaultValue: String(defaults.getEnableInstallTelemetry()),
 				values: ["true", "false"],
 			},
 			{
@@ -542,6 +557,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Default project trust",
 				description: "Fallback behavior when no extension or saved trust decision decides project trust",
 				currentValue: DEFAULT_PROJECT_TRUST_LABELS[config.defaultProjectTrust],
+				defaultValue: DEFAULT_PROJECT_TRUST_LABELS[defaults.getDefaultProjectTrust()],
 				values: Object.values(DEFAULT_PROJECT_TRUST_LABELS),
 			},
 			{
@@ -549,6 +565,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Double-escape action",
 				description: "Action when pressing Escape twice with empty editor",
 				currentValue: config.doubleEscapeAction,
+				defaultValue: defaults.getDoubleEscapeAction(),
 				values: ["tree", "fork", "none"],
 			},
 			{
@@ -556,6 +573,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Tree filter mode",
 				description: "Default filter when opening /tree",
 				currentValue: config.treeFilterMode,
+				defaultValue: defaults.getTreeFilterMode(),
 				values: ["default", "no-tools", "user-only", "labeled-only", "all"],
 			},
 			{
@@ -578,6 +596,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Default thinking level per model",
 				description: `Override the default thinking level for specific models. ${cycleThinkingKey} cycles in-session.`,
 				currentValue: modelThinkingOverridesSummary(currentModelThinkingLevels),
+				defaultValue: modelThinkingOverridesSummary(defaults.getAllModelThinkingLevels()),
 				submenu: (_currentValue, done) => {
 					const steps: SteppedSubmenuStep[] = [
 						{
@@ -679,6 +698,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "TUI mode",
 				description: "Interface layout; fullscreen mode is experimental",
 				currentValue: config.tuiMode,
+				defaultValue: defaults.getTuiMode(),
 				values: ["regular", "fullscreen"],
 			},
 			{
@@ -686,6 +706,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Fullscreen exit output",
 				description: "Print the transcript or only a session resume hint when exiting fullscreen mode",
 				currentValue: config.fullscreenExitOutput,
+				defaultValue: defaults.getFullscreenExitOutput(),
 				values: ["transcript", "resume-hint"],
 			},
 			{
@@ -693,6 +714,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Fullscreen scrollbar",
 				description: "Scrollbar behavior in fullscreen mode; has no effect in regular mode",
 				currentValue: config.fullscreenScrollbar,
+				defaultValue: defaults.getFullscreenScrollbar(),
 				values: ["auto", "always", "hidden"],
 			},
 			{
@@ -700,6 +722,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Fullscreen copy on select",
 				description: "Automatically copy selected text in fullscreen mode; disable to copy selections with Ctrl+X",
 				currentValue: config.fullscreenCopyOnSelect ? "true" : "false",
+				defaultValue: String(defaults.getFullscreenCopyOnSelect()),
 				values: ["true", "false"],
 			},
 			{
@@ -707,6 +730,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Theme",
 				description: "Color theme for the interface",
 				currentValue: config.currentTheme,
+				defaultValue: "dark or light (detected from terminal)",
 				submenu: (currentValue, done) =>
 					new ThemeSubmenu(currentValue, config.terminalTheme, config.availableThemes, callbacks, done),
 			},
@@ -720,6 +744,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Show images",
 				description: "Render images inline in terminal",
 				currentValue: config.showImages ? "true" : "false",
+				defaultValue: String(defaults.getShowImages()),
 				values: ["true", "false"],
 			});
 			items.splice(2, 0, {
@@ -727,6 +752,7 @@ export class SettingsSelectorComponent extends Container {
 				label: "Image width",
 				description: "Preferred inline image width in terminal cells",
 				currentValue: String(config.imageWidthCells),
+				defaultValue: String(defaults.getImageWidthCells()),
 				values: ["60", "80", "120"],
 			});
 		}
@@ -737,6 +763,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Auto-resize images",
 			description: "Resize large images to 2000x2000 max for better model compatibility",
 			currentValue: config.autoResizeImages ? "true" : "false",
+			defaultValue: String(defaults.getImageAutoResize()),
 			values: ["true", "false"],
 		});
 
@@ -747,6 +774,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Block images",
 			description: "Prevent images from being sent to LLM providers",
 			currentValue: config.blockImages ? "true" : "false",
+			defaultValue: String(defaults.getBlockImages()),
 			values: ["true", "false"],
 		});
 
@@ -757,6 +785,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Skill commands",
 			description: "Register skills as /skill:name commands",
 			currentValue: config.enableSkillCommands ? "true" : "false",
+			defaultValue: String(defaults.getEnableSkillCommands()),
 			values: ["true", "false"],
 		});
 
@@ -767,6 +796,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Show hardware cursor",
 			description: "Show the terminal cursor while still positioning it for IME support",
 			currentValue: config.showHardwareCursor ? "true" : "false",
+			defaultValue: "false", // Built-in default, excluding PI_HARDWARE_CURSOR.
 			values: ["true", "false"],
 		});
 
@@ -777,6 +807,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Editor padding",
 			description: "Horizontal padding for input editor (0-3)",
 			currentValue: String(config.editorPaddingX),
+			defaultValue: String(defaults.getEditorPaddingX()),
 			values: ["0", "1", "2", "3"],
 		});
 
@@ -787,6 +818,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Output padding",
 			description: "Horizontal padding for user messages, assistant messages, and thinking",
 			currentValue: String(config.outputPad),
+			defaultValue: String(defaults.getOutputPad()),
 			values: ["0", "1"],
 		});
 
@@ -797,6 +829,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Autocomplete max items",
 			description: "Max visible items in autocomplete dropdown (3-20)",
 			currentValue: String(config.autocompleteMaxVisible),
+			defaultValue: String(defaults.getAutocompleteMaxVisible()),
 			values: ["3", "5", "7", "10", "15", "20"],
 		});
 
@@ -807,6 +840,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Clear on shrink",
 			description: "Clear empty rows when content shrinks (may cause flicker)",
 			currentValue: config.clearOnShrink ? "true" : "false",
+			defaultValue: "false", // Built-in default, excluding PI_CLEAR_ON_SHRINK.
 			values: ["true", "false"],
 		});
 
@@ -817,6 +851,7 @@ export class SettingsSelectorComponent extends Container {
 			label: "Terminal progress",
 			description: "Show OSC 9;4 progress indicators in the terminal tab bar",
 			currentValue: config.showTerminalProgress ? "true" : "false",
+			defaultValue: String(defaults.getShowTerminalProgress()),
 			values: ["true", "false"],
 		});
 

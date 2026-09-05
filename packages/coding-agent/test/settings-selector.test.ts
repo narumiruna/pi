@@ -6,7 +6,7 @@ import {
 	type SettingsConfig,
 	SettingsSelectorComponent,
 } from "../src/modes/interactive/components/settings-selector.ts";
-import { initTheme } from "../src/modes/interactive/theme/theme.ts";
+import { initTheme, theme } from "../src/modes/interactive/theme/theme.ts";
 import { stripAnsi } from "../src/utils/ansi.ts";
 import { createHarness, type Harness } from "./suite/harness.ts";
 
@@ -20,6 +20,69 @@ describe("SettingsSelectorComponent", () => {
 	afterEach(() => {
 		harness?.cleanup();
 		harness = undefined;
+		vi.unstubAllEnvs();
+	});
+
+	it("shows built-in defaults independently of current values and environment overrides", () => {
+		vi.stubEnv("PI_HARDWARE_CURSOR", "1");
+		vi.stubEnv("PI_CLEAR_ON_SHRINK", "1");
+		const onAutoCompactChange = vi.fn();
+		const config = {
+			autoCompact: false,
+			editorPaddingX: 2,
+			transport: "sse",
+			steeringMode: "all",
+			followUpMode: "all",
+			mermaidRenderingMode: "off",
+			defaultProjectTrust: "always",
+			doubleEscapeAction: "fork",
+			treeFilterMode: "all",
+			tuiMode: "fullscreen",
+			fullscreenExitOutput: "resume-hint",
+			fullscreenScrollbar: "hidden",
+			currentTheme: "light",
+			showHardwareCursor: true,
+			clearOnShrink: true,
+			defaultModel: "not set",
+			availableDefaultModels: [],
+			modelThinkingLevels: {},
+			warnings: {},
+		} as unknown as SettingsConfig;
+		const callbacks = { onAutoCompactChange } as unknown as SettingsCallbacks;
+		const list = new SettingsSelectorComponent(config, callbacks).getSettingsList();
+
+		const lines = list.render(100);
+		const descriptionIndex = lines.findIndex((line) =>
+			stripAnsi(line).includes("Automatically compact context when it gets too large"),
+		);
+		expect(descriptionIndex).toBeGreaterThanOrEqual(0);
+		expect(stripAnsi(lines[descriptionIndex])).toBe(
+			"  Automatically compact context when it gets too large (Default: true)",
+		);
+		expect(lines[descriptionIndex]).toContain(theme.fg("dim", "(Default: true)"));
+
+		list.handleInput("\r");
+		expect(onAutoCompactChange).toHaveBeenCalledWith(true);
+		expect(list.render(100).join("\n")).toContain(theme.fg("dim", "(Default: true)"));
+
+		for (const [id, value] of [
+			["editor-padding", "0"],
+			["output-padding", "1"],
+			["autocomplete-max-visible", "5"],
+			["transport", "auto"],
+			["show-hardware-cursor", "false"],
+			["clear-on-shrink", "false"],
+			["default-project-trust", "Ask"],
+			["model-thinking", "none"],
+		]) {
+			list.selectItem(id);
+			expect(list.render(200).join("\n")).toContain(theme.fg("dim", `(Default: ${value})`));
+		}
+
+		list.selectItem("warnings");
+		expect(stripAnsi(list.render(100).join("\n"))).not.toContain("Default:");
+		list.handleInput("\r");
+		expect(list.render(200).join("\n")).toContain(theme.fg("dim", "(Default: true)"));
 	});
 
 	it("cycles through fullscreen settings", () => {
